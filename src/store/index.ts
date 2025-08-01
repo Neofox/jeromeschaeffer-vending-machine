@@ -1,5 +1,6 @@
 import { match } from "ts-pattern"
 import { create } from "zustand/react"
+import { calculateChange, type Change } from "../utils/payment"
 
 export type Product = {
   id: string
@@ -11,7 +12,7 @@ export type Product = {
 export type MachineStatus =
   | { name: "idle" }
   | { name: "awaiting-payment"; productId: string; insertedAmount: number }
-  | { name: "dispensing"; productId: string; change: number }
+  | { name: "dispensing"; productId: string; change: Change }
   | { name: "error"; message: string; previousStatus: MachineStatus }
 
 export type State = {
@@ -76,7 +77,7 @@ export const useStore = create<State & Actions>((set, get) => ({
 
         if (newAmount >= product.price) {
           // Payment complete
-          const change = newAmount - product.price
+          const change = calculateChange(newAmount - product.price)
           const updatedProducts = products.map((p) => (p.id === product.id ? { ...p, stock: p.stock - 1 } : p))
           set({ products: updatedProducts, status: { name: "dispensing", productId: product.id, change } })
         } else {
@@ -104,7 +105,7 @@ export const useStore = create<State & Actions>((set, get) => ({
           const updatedProducts = products.map((p) => (p.id === product.id ? { ...p, stock: p.stock - 1 } : p))
           set({
             products: updatedProducts,
-            status: { name: "dispensing", productId: product.id, change: 0 },
+            status: { name: "dispensing", productId: product.id, change: [] },
           })
         } else {
           console.error("Payment failed.")
