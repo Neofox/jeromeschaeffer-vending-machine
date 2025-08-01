@@ -12,7 +12,7 @@ export type Product = {
 export type MachineStatus =
   | { name: "idle" }
   | { name: "awaiting-payment"; productId: string; insertedAmount: number }
-  | { name: "dispensing"; productId: string | null; change: Change }
+  | { name: "dispensing"; productId: string | null; change: Change; itemTaken: boolean; changeTaken: boolean }
   | { name: "error"; message: string; previousStatus: MachineStatus; change?: Change }
 
 export type State = {
@@ -25,6 +25,8 @@ export type Actions = {
   insertCash: (money: Money) => void
   payByCard: () => Promise<void>
   takeItemAndChange: () => void
+  takeItem: () => void
+  takeChange: () => void
   resetFromError: () => void
   cancelOrder: () => void
 }
@@ -93,7 +95,10 @@ export const useStore = create<State & Actions>((set, get) => ({
           // Payment complete
           const change = calculateChange(newAmount - product.price)
           const updatedProducts = products.map((p) => (p.id === product.id ? { ...p, stock: p.stock - 1 } : p))
-          set({ products: updatedProducts, status: { name: "dispensing", productId: product.id, change } })
+          set({
+            products: updatedProducts,
+            status: { name: "dispensing", productId: product.id, change, itemTaken: false, changeTaken: false },
+          })
         } else {
           // More money needed
           set({ status: { ...currentStatus, insertedAmount: newAmount } })
@@ -119,7 +124,7 @@ export const useStore = create<State & Actions>((set, get) => ({
           const updatedProducts = products.map((p) => (p.id === product.id ? { ...p, stock: p.stock - 1 } : p))
           set({
             products: updatedProducts,
-            status: { name: "dispensing", productId: product.id, change: [] },
+            status: { name: "dispensing", productId: product.id, change: [], itemTaken: false, changeTaken: true },
           })
         } else {
           console.error("Payment failed.")
@@ -137,6 +142,46 @@ export const useStore = create<State & Actions>((set, get) => ({
       .with({ name: "dispensing" }, () => set({ status: { name: "idle" } }))
       .otherwise(() => {
         console.error(`Action 'takeItemAndChange' called in invalid state: ${status.name}`)
+      })
+  },
+
+  takeItem: () => {
+    const { status } = get()
+    match(status)
+      .with({ name: "dispensing" }, (currentStatus) => {
+        const newStatus = { ...currentStatus, itemTaken: true }
+        // Check if both item and change have been taken (or there's no change)
+        const hasNoChange = !currentStatus.change || currentStatus.change.length === 0
+        const changeTaken = currentStatus.changeTaken === true
+
+        if (hasNoChange || changeTaken) {
+          set({ status: { name: "idle" } })
+        } else {
+          set({ status: newStatus })
+        }
+      })
+      .otherwise(() => {
+        console.error(`Action 'takeItem' called in invalid state: ${status.name}`)
+      })
+  },
+
+  takeChange: () => {
+    const { status } = get()
+    match(status)
+      .with({ name: "dispensing" }, (currentStatus) => {
+        const newStatus = { ...currentStatus, changeTaken: true }
+        // Check if both item and change have been taken (or there's no item)
+        const hasNoItem = !currentStatus.productId
+        const itemTaken = currentStatus.itemTaken === true
+
+        if (hasNoItem || itemTaken) {
+          set({ status: { name: "idle" } })
+        } else {
+          set({ status: newStatus })
+        }
+      })
+      .otherwise(() => {
+        console.error(`Action 'takeChange' called in invalid state: ${status.name}`)
       })
   },
 
@@ -158,7 +203,15 @@ export const useStore = create<State & Actions>((set, get) => ({
       .with({ name: "awaiting-payment" }, () => {
         if ("insertedAmount" in status && status.insertedAmount > 0) {
           console.log(`Returning ${status.insertedAmount}₩ to user.`)
-          set({ status: { name: "dispensing", productId: null, change: calculateChange(status.insertedAmount) } })
+          set({
+            status: {
+              name: "dispensing",
+              productId: null,
+              change: calculateChange(status.insertedAmount),
+              itemTaken: false,
+              changeTaken: false,
+            },
+          })
           return
         }
         set({ status: { name: "idle" } })

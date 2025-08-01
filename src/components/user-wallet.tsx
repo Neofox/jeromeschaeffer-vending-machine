@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { match } from "ts-pattern"
+import { match, P } from "ts-pattern"
 import { AlertTriangle, RefreshCw, Wallet, X } from "lucide-react"
 import { CashButtons, PaymentButtons } from "./payment-buttons"
 import { useStore } from "../store"
@@ -59,10 +59,16 @@ export function UserWallet() {
             </div>
           )
         })
-        .with({ name: "dispensing" }, () => (
+        .with({ name: "dispensing", productId: P.not(null) }, () => (
           <div className="space-y-4 text-center">
             <div className="text-xl font-bold text-green-600">Payment Complete!</div>
             <p className="text-gray-600">Please collect your item and change from the vending machine.</p>
+          </div>
+        ))
+        .with({ name: "dispensing", productId: P.nullish }, () => (
+          <div className="space-y-4 text-center">
+            <div className="text-xl font-bold text-green-600">Dispensing Change</div>
+            <p className="text-gray-600">Please collect your change from the machine.</p>
           </div>
         ))
         .with({ name: "error" }, ({ message }) => (
