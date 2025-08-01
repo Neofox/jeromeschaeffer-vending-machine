@@ -24,7 +24,6 @@ export type Actions = {
   selectProduct: (productId: string) => void
   insertCash: (money: Money) => void
   payByCard: () => Promise<void>
-  takeItemAndChange: () => void
   takeItem: () => void
   takeChange: () => void
   resetFromError: () => void
@@ -133,15 +132,6 @@ export const useStore = create<State & Actions>((set, get) => ({
       })
       .otherwise(async () => {
         console.error(`Action 'payByCard' called in invalid state: ${status.name}`)
-      })
-  },
-
-  takeItemAndChange: () => {
-    const { status } = get()
-    match(status)
-      .with({ name: "dispensing" }, () => set({ status: { name: "idle" } }))
-      .otherwise(() => {
-        console.error(`Action 'takeItemAndChange' called in invalid state: ${status.name}`)
       })
   },
 
