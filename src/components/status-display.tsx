@@ -1,34 +1,33 @@
 import { useMemo } from "react"
 import { useStore } from "../store"
 import { getTotalFromChange } from "../utils/payment"
+import { match } from "ts-pattern"
 
 export function StatusDisplay() {
   const status = useStore((state) => state.status)
   const products = useStore((state) => state.products)
 
   const statusMessage = useMemo(() => {
-    switch (status.name) {
-      case "idle":
-        return "Please select a product"
+    return match(status)
+      .with({ name: "idle" }, () => "Please select a product")
+      .with({ name: "awaiting-payment" }, ({ productId, insertedAmount }) => {
+        const product = products.find((p) => p.id === productId)
+        if (!product) return "Product not found"
+        const remaining = Math.max(0, product.price - insertedAmount)
 
-      case "awaiting-payment": {
-        const product = products.find((p) => p.id === status.productId)!
-        const remaining = Math.max(0, product.price - status.insertedAmount)
-        return `Selected: ${product.name} (${product.price}₩) | Inserted: ${status.insertedAmount}₩ | Remaining: ${remaining}₩`
-      }
+        return `Selected: ${product.name} (${product.price}₩) | Inserted: ${insertedAmount}₩ | Remaining: ${remaining}₩`
+      })
+      .with({ name: "dispensing" }, ({ productId, change }) => {
+        const product = products.find((p) => p.id === productId)
+        const totalChange = getTotalFromChange(change)
+        let message = "Finishing transaction... "
+        if (totalChange > 0) message += `Change: ${totalChange}₩`
+        if (product) message += ` Dispensing ${product.name} `
 
-      case "dispensing": {
-        const product = products.find((p) => p.id === status.productId)!
-        const totalChange = getTotalFromChange(status.change)
-        return `Dispensing ${product.name}${totalChange > 0 ? ` | Change: ${totalChange}₩` : ""}`
-      }
-
-      case "error":
-        return `Error: ${status.message}`
-
-      default:
-        return ""
-    }
+        return message
+      })
+      .with({ name: "error" }, ({ message }) => `Error: ${message}`)
+      .otherwise(() => "Unknown status")
   }, [status, products])
 
   return (

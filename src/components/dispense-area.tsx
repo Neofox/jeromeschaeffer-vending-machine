@@ -16,7 +16,7 @@ export function DispenseArea() {
         <div className="flex-1 rounded-lg bg-gray-600 p-4">
           <div className="mb-2 text-center text-xs text-white">CHANGE</div>
           <div className="flex h-16 items-center justify-center rounded bg-black">
-            {status.name === "dispensing" && status.change.length > 0 && (
+            {"change" in status && status.change && (
               <div className="text-center">
                 <div className="mb-1 font-bold text-green-400">{getTotalFromChange(status.change)}₩</div>
                 <div className="max-w-40 text-xs leading-tight text-green-300">{formatChange(status.change)}</div>

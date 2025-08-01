@@ -1,6 +1,6 @@
 import { match } from "ts-pattern"
 import { create } from "zustand/react"
-import { calculateChange, type Change } from "../utils/payment"
+import { calculateChange, type Change, type Money } from "../utils/payment"
 
 export type Product = {
   id: string
@@ -12,8 +12,8 @@ export type Product = {
 export type MachineStatus =
   | { name: "idle" }
   | { name: "awaiting-payment"; productId: string; insertedAmount: number }
-  | { name: "dispensing"; productId: string; change: Change }
-  | { name: "error"; message: string; previousStatus: MachineStatus }
+  | { name: "dispensing"; productId: string | null; change: Change }
+  | { name: "error"; message: string; previousStatus: MachineStatus; change?: Change }
 
 export type State = {
   status: MachineStatus
@@ -22,7 +22,7 @@ export type State = {
 
 export type Actions = {
   selectProduct: (productId: string) => void
-  insertCash: (amount: number) => void
+  insertCash: (money: Money) => void
   payByCard: () => Promise<void>
   takeItemAndChange: () => void
   resetFromError: () => void
@@ -63,17 +63,31 @@ export const useStore = create<State & Actions>((set, get) => ({
         set({ status: { name: "awaiting-payment", productId, insertedAmount: 0 } })
       })
       .otherwise(() => {
-        console.warn(`Action 'selectProduct' called in invalid state: ${status.name}`)
+        console.error(`Action 'selectProduct' called in invalid state: ${status.name}`)
       })
   },
 
-  insertCash: (amount) => {
+  insertCash: (money: Money) => {
     const { status, products } = get()
 
     match(status)
       .with({ name: "awaiting-payment" }, (currentStatus) => {
+        // Simulate a 10% chance that the coin/bill is not read correctly
+        if (Math.random() < 0.1) {
+          console.warn("Money not read correctly...")
+          set({
+            status: {
+              name: "error",
+              message: `There was an error reading the money: ${money.name}`,
+              change: [{ money, count: 1 }],
+              previousStatus: status,
+            },
+          })
+          return
+        }
+
         const product = products.find((p) => p.id === currentStatus.productId)!
-        const newAmount = currentStatus.insertedAmount + amount
+        const newAmount = currentStatus.insertedAmount + money.value
 
         if (newAmount >= product.price) {
           // Payment complete
@@ -86,7 +100,7 @@ export const useStore = create<State & Actions>((set, get) => ({
         }
       })
       .otherwise(() => {
-        console.warn(`Action 'insertCash' called in invalid state: ${status.name}`)
+        console.error(`Action 'insertCash' called in invalid state: ${status.name}`)
       })
   },
 
@@ -113,7 +127,7 @@ export const useStore = create<State & Actions>((set, get) => ({
         }
       })
       .otherwise(async () => {
-        console.warn(`Action 'payByCard' called in invalid state: ${status.name}`)
+        console.error(`Action 'payByCard' called in invalid state: ${status.name}`)
       })
   },
 
@@ -122,7 +136,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     match(status)
       .with({ name: "dispensing" }, () => set({ status: { name: "idle" } }))
       .otherwise(() => {
-        console.warn(`Action 'takeItemAndChange' called in invalid state: ${status.name}`)
+        console.error(`Action 'takeItemAndChange' called in invalid state: ${status.name}`)
       })
   },
 
@@ -134,7 +148,7 @@ export const useStore = create<State & Actions>((set, get) => ({
         set({ status: errorStatus.previousStatus })
       })
       .otherwise(() => {
-        console.warn(`Action 'resetFromError' called in invalid state: ${status.name}`)
+        console.error(`Action 'resetFromError' called in invalid state: ${status.name}`)
       })
   },
 
@@ -142,11 +156,15 @@ export const useStore = create<State & Actions>((set, get) => ({
     const { status } = get()
     match(status)
       .with({ name: "awaiting-payment" }, () => {
-        // Return any inserted money and go back to idle state
+        if ("insertedAmount" in status && status.insertedAmount > 0) {
+          console.log(`Returning ${status.insertedAmount}₩ to user.`)
+          set({ status: { name: "dispensing", productId: null, change: calculateChange(status.insertedAmount) } })
+          return
+        }
         set({ status: { name: "idle" } })
       })
       .otherwise(() => {
-        console.warn(`Action 'cancelOrder' called in invalid state: ${status.name}`)
+        console.error(`Action 'cancelOrder' called in invalid state: ${status.name}`)
       })
   },
 }))

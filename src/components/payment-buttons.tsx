@@ -1,13 +1,6 @@
 import { Banknote, CreditCard } from "lucide-react"
 import { useStore } from "../store"
-
-const cashAmounts = [
-  { value: 100, label: "100₩" },
-  { value: 500, label: "500₩" },
-  { value: 1000, label: "1,000₩" },
-  { value: 5000, label: "5,000₩" },
-  { value: 10000, label: "10,000₩" },
-]
+import { money } from "../utils/payment"
 
 export function CashButtons() {
   const insertCash = useStore((state) => state.insertCash)
@@ -16,14 +9,14 @@ export function CashButtons() {
     <div className="space-y-3">
       <div className="text-sm font-semibold text-gray-700">Insert Cash:</div>
       <div className="flex flex-wrap gap-2">
-        {cashAmounts.map(({ value, label }) => (
+        {money.map((m) => (
           <button
-            key={value}
-            onClick={() => insertCash(value)}
+            key={m.value}
+            onClick={() => insertCash(m)}
             className="flex w-36 items-center justify-center gap-2 rounded-lg bg-green-500 py-3 font-semibold text-white transition-all duration-200 hover:bg-green-600"
           >
             <Banknote size={16} />
-            {label}
+            {m.name}
           </button>
         ))}
       </div>
