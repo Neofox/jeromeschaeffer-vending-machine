@@ -31,8 +31,8 @@ This project was made as a interview exercise.
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
-   cd vending-machine
+   git clone https://github.com/Neofox/jeromeschaeffer-vending-machine.git
+   cd jeromeschaeffer-vending-machine
    ```
 
 #### Using Bun (Recommended)
